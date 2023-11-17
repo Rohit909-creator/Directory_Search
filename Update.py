@@ -1,11 +1,12 @@
-import openai
 import os
 from sklearn.metrics.pairwise import cosine_similarity
 import json
-openai.api_key = os.environ['API_KEY']
+from openai import OpenAI
+import numpy as np
+client = OpenAI()
 
 # path = 'C:\\Users\\ROHIT FRANCIS\\OneDrive\\Desktop\\ALL Here\\AI_Ideas\\Directory Search'
-path = "C:\\Users\\ROHIT FRANCIS\\OneDrive\\Desktop\\ALL Here\\AI_Ideas\\DirectorySearch_2_0"
+path = "<path goes here>"
 
 class Search():
 
@@ -23,16 +24,20 @@ class Search():
         for key in self.keys:
             self.embeddings.append(d[key])
         # print(self.keys)
-    def query(self, query):
+    def query(self, q):
 
-        embs = self.get_embedding(query)
+        embs = self.get_embedding(q)
         probs = cosine_similarity([embs], self.embeddings)
         idx = probs.argmax(axis=-1)
-        return probs, idx, self.keys[idx.item()]
+        args = np.argsort(probs)[0].tolist()
+        results = [self.keys[index] for index in args]
+        # print(results)
+        return probs, idx, self.keys[idx.item()], results[-1::-1]
 
-    def get_embedding(self,text, model="text-embedding-ada-002"):
+    def get_embedding(self,text:str, model="text-embedding-ada-002"):
         text = text.replace("\n", " ")
-        return openai.Embedding.create(input = [text], model=model)['data'][0]['embedding']
+        return client.embeddings.create(input = [text], model=model).data[0].embedding
+     
     def update(self, embs,key):
 
         with open(path+"\\Dir_Embed_data.json","r") as f:
@@ -53,13 +58,13 @@ if __name__ == '__main__':
     # print(len(embs))
     # s.update([1,2],"1")
     # s.update([1,2],"3")
-    probs, idx, path_ = s.query("AI projects by Rohit Francis")
-    print(probs, idx, path_)
+    probs, idx, path_, results = s.query("A file about Moon Mission")
+    print(probs, idx, path_, results)
     with open(path+"\\Dir_Embed_data.json","r") as f:
         s = f.read()
         d = json.loads(s)
     
-    # print(f'\n\n\n{d.keys()}')
+    print(f'\n\n\n{d.keys()}')
     # print(len(d[list(d.keys())[-1]]))
     
             
