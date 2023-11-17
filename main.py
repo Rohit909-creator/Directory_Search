@@ -1,73 +1,115 @@
-import flet as ft
-from flet import (
-    Column,
-    Row,
-    Container,
-    Page,
-    UserControl,
-    colors,
-    Text,
-    TextField,
-    icons,
-    IconButton,
-    ElevatedButton,
-    alignment,
-    FontWeight,
-    TextAlign
-)
-import sys
+# from Search import *
+import os
+import time
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from rich import print
+from rich.markdown import Markdown
+from rich.prompt import Prompt
+import keyboard
 import Update
+
 
 search = Update.Search()
 
-# print(sys.argv)
+class FolderHandler(FileSystemEventHandler):
+    # This class handles the creation of new folders
+    def __init__(self)->None:
+        super().__init__()
+        self.folder_path = None
+
+    def on_created(self, event):
+        # This method is called when a new folder is created
+        if event.is_directory:
+
+            # If the event is a directory, get its name
+            folder_name = event.src_path
+            print(f"New folder created: {folder_name}")
+            self.folder_path = event.src_path
+            
+
+    def on_modified(self, event):
+        if keyboard.is_pressed('s') and keyboard.is_pressed('e'):
+            q = Prompt.ask("Description")
+            print(f"[green]Searching:[/green] [bold red]{q}[/bold red].....")
+
+            probs, idx, path_ = search.query(q)
+            print(f"[green]Got the path to your folder:[/green][cyan]{path_}[/cyan] [green]confidence:[/green][cyan]{probs[0][idx]}[/cyan]")
+            #after you are done with searching
+            print(f"[blue]Watching {path} for new folders...[/blue]")
+
+    def on_moved(self, event):
+        if event.is_directory:
+            # print(self.folder_path)
+            if event.src_path == self.folder_path:
+                folder_name = event.dest_path
+                print(f"New folder Modified: {folder_name}")
+                # os.system(f"python main.py {folder_name}")                
+                markdown_text = f"""
+# File Descripter
+
+- Provide Description about the file you are uploading in the directory {folder_name}.
+- Do not provide few word description.
+- Make sure the description is accurate.
+
+"""
+                
+                markdown = Markdown(markdown_text)
+
+                print(markdown)
+
+                inp = Prompt.ask("Description")
+
+                print(f"input: [bold green]{inp}[/bold green]!")
+
+                with open(f"{folder_name}\Description.txt",'w') as f:
+                    f.write(inp)
+
+                embs = search.get_embedding(inp)
+
+                search.update(embs, f"{folder_name}\Description.txt")
+                os.system("cls")
+                intro = f"""
+                # Directory Search
+- Press 'SE' at the sametime for searching
+- when you create a new folder the program will automatically detect and ask you for its description
+"""
+
+                markdown = Markdown(intro)
+                print(markdown)
+                print(f"[blue]Watching {path} for new folders...[/blue]")
+                
+
+# Create an observer object that will watch a given path
+path = "C:\\Users\\ROHIT FRANCIS\\OneDrive\\Desktop" # Change this to your desired path
+observer = Observer()
+observer.schedule(FolderHandler(), path, recursive=True)
 
 
-def main(page: ft.page):
+intro = f"""
+# Directory Search
+- Press 'SE' at the sametime for searching
+- when you create a new folder the program will automatically detect and ask you for its description
+"""
 
-    page.title = "DirectorySort"
+markdown = Markdown(intro)
+print(markdown)
 
-    def click(p):
+# Start the observer thread
+observer.start()
+print(f"[blue]Watching {path} for new folders...[/blue]")
 
-        entries2 = Row(controls = [Text(value = f" {textfield.value}")])
 
-        c2 = Container(content=entries2,
-                    bgcolor=colors.BLACK54,
-                    height=50,
-                    width=350,
-                    border_radius=20,
-                    )
-        # textfield.value = m(textfield.value).stringToMorse()
-        
-        with open(f"{' '.join(sys.argv[1:])}\Description.txt",'w') as f:
-            f.write(textfield.value)
+# Keep the program running until Ctrl+C is pressed
+try:
+    while True:
+        if keyboard.is_pressed('s') and keyboard.is_pressed('e'):
+            os.system("python Search.py")
 
-        embs = search.get_embedding(textfield.value)
+        time.sleep(0.1)
+except KeyboardInterrupt:
+    observer.stop()
 
-        search.update(embs, f"{' '.join(sys.argv[1:])}\Description.txt")
-
-        page.add(c2)
-        page.update()
-    # s = ft.Stack(controls=[c2],)
-    page.window_width = 500
-    page.window_height = 500
-    textfield = TextField(width=350, border_radius=20)
-    addbtn = ElevatedButton(text="Send", on_click=click)
-
-    entries = ft.Row(controls=[textfield, addbtn])
-
-    c = Container(content=entries,
-                bgcolor=colors.BLACK87,
-                width=500,
-                height=50,
-                border_radius=20)
-    
-    # img = ft.Image(src="C:\\Users\\ROHIT FRANCIS\\Downloads\\morse code.png", width=500,height=400,border_radius=20)
-    
-    page.add(c)
-    # page.add(img)
-    # l = ft.LabelPosition(value='hey')
-    # page.add(l)
-app = ft.app(target=main)
-
+# Wait for the observer tsesehread to finish
+observer.join()
 
